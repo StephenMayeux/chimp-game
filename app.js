@@ -11,6 +11,8 @@ class ChimpGame {
 		this.x = null;
 		this.y = null;
 		this.color = null;
+		this.timeOnRender = null;
+		this.events = [];
 	}
 
 	init() {
@@ -25,8 +27,23 @@ class ChimpGame {
 
 	startGame() {
 		this.inProgress = true;
+		this.handleBox();
+	}
+
+	recordEvent() {
+		this.events.push({
+			color: this.color,
+			x: this.x,
+			y: this.y,
+			response: Date.now() - this.timeOnRender
+		});
+		console.log(this.events);
+	}
+
+	handleBox() {
 		this.createBox();
 		this.renderBox();
+		this.recordTime();
 	}
 
 	createBox() {
@@ -40,6 +57,20 @@ class ChimpGame {
 		document.body.appendChild(this.box);
 	}
 
+	recordTime() {
+		this.timeOnRender = Date.now();
+	}
+
+	handleClick = () => {
+		this.recordEvent();
+		this.destroyBox();
+		setTimeout(() => {
+			if (this.inProgress) {
+				this.handleBox();
+			}
+		}, this.delay);
+	}
+
 	destroyBox() {
 		if (this.box) {
 			document.body.removeChild(this.box);
@@ -47,20 +78,41 @@ class ChimpGame {
 		}
 	}
 
-	handleClick = () => {
-		this.destroyBox();
-		setTimeout(() => {
-			if (this.inProgress) {
-				this.createBox();
-				this.renderBox();
-			}
-		}, this.delay);
-	}
-
 	stopGame() {
-		console.log('bam!')
 		this.inProgress = false;
 		this.destroyBox();
+		this.exportResults();
+		this.clearResults();
+	}
+
+	exportResults() {
+		const headers = 'color,x,y,response\n';
+		const csvContent = this.events.reduce((acc, row) => {
+			const [color, x, y, response] = Object.values(row);
+			acc += `${color},${x},${y},${response}\n`;
+			return acc;
+		}, headers);
+
+		const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+		const filename = `results-${Date.now()}`;
+    if (navigator.msSaveBlob) {
+        navigator.msSaveBlob(blob, filename);
+    } else {
+        const link = document.createElement('a');
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    }
+	}
+
+	clearResults() {
+		this.events.length = 0;
 	}
 
 	setStyles() {
